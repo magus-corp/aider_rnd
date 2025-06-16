@@ -338,6 +338,7 @@ class Coder:
         file_watcher=None,
         auto_copy_context=False,
         auto_accept_architect=True,
+        auto_context=False,
     ):
         # Fill in a dummy Analytics if needed, but it is never .enable()'d
         self.analytics = analytics if analytics is not None else Analytics()
@@ -350,6 +351,7 @@ class Coder:
         self.rejected_urls = set()
         self.abs_root_path_cache = {}
 
+        self.auto_context = auto_context
         self.auto_copy_context = auto_copy_context
         self.auto_accept_architect = auto_accept_architect
 
@@ -928,6 +930,9 @@ class Coder:
             message = self.preproc_user_input(user_message)
         else:
             message = user_message
+
+        if message and self.auto_context:
+            self.update_context(message)
 
         while message:
             self.reflected_message = None
@@ -1621,6 +1626,77 @@ class Coder:
                 if ok:
                     self.reflected_message = test_errors
                     return
+
+    def update_context(self, message):
+        # Only run if there is a repo map to suggest files from
+        if not self.repo_map:
+            return
+
+        from .context_prompts import ContextPrompts
+
+        # 1. Create a "disposable" coder for this task
+        # It inherits files, repo, etc. but has no chat history
+        context_coder = self.clone(
+            done_messages=[],
+            cur_messages=[],
+            summarize_from_coder=False,
+        )
+        context_coder.gpt_prompts = ContextPrompts()
+
+        # 2. Send the user's message to the context_coder to get file suggestions
+        context_coder.cur_messages.append(dict(role="user", content=message))
+        chunks = context_coder.format_messages()
+        messages = chunks.all_messages()
+
+        try:
+            _hash, completion = self.main_model.send_completion(
+                messages,
+                stream=False,
+            )
+            content = completion.choices[0].message.content or ""
+        except Exception as e:
+            self.io.tool_warning(f"Error checking context: {e}")
+            return
+
+        # 3. Parse the response
+        suggested_files = []
+        for line in content.splitlines():
+            line = line.strip()
+            if line.startswith("-"):
+                # handles `- path/to/file.py` and `- `path/to/file.py``
+                file_path = line[1:].strip().strip("`")
+                if file_path:
+                    suggested_files.append(file_path)
+
+        # 4. Update the files in chat
+        current_files = set(self.get_inchat_relative_files())
+        suggested_files = set(suggested_files)
+
+        to_add = suggested_files - current_files
+        to_drop = current_files - suggested_files
+
+        if not to_add and not to_drop:
+            return
+
+        self.io.tool_output("Aider is thinking about context...")
+        num_changes = 0
+        for fname in sorted(to_drop):
+            if self.drop_rel_fname(fname):
+                self.io.tool_output(f"Removed {fname} from chat.")
+                num_changes += 1
+
+        for fname in sorted(to_add):
+            # Check if file exists before adding
+            abs_fname = self.abs_root_path(fname)
+            if not os.path.exists(abs_fname):
+                self.io.tool_warning(f"Model suggested adding non-existent file, skipping: {fname}")
+                continue
+            self.add_rel_fname(fname)
+            self.io.tool_output(f"Added {fname} to chat.")
+            num_changes += 1
+
+        if num_changes > 0:
+            self.io.tool_output()
 
     def reply_completed(self):
         pass
