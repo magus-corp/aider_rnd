@@ -88,6 +88,11 @@ class Commands:
         "Switch the Main Model to a new LLM"
 
         model_name = args.strip()
+        if not model_name:
+            announcements = "\n".join(self.coder.get_announcements())
+            self.io.tool_output(announcements)
+            return
+
         model = models.Model(
             model_name,
             editor_model=self.coder.main_model.editor_model.name,
@@ -407,6 +412,7 @@ class Commands:
         "Clear the chat history"
 
         self._clear_chat_history()
+        self.io.tool_output("All chat history cleared.")
 
     def _drop_all_files(self):
         self.coder.abs_fnames = set()
@@ -563,6 +569,7 @@ class Commands:
 
         last_commit_hash = self.coder.repo.get_head_commit_sha(short=True)
         last_commit_message = self.coder.repo.get_head_commit_message("(unknown)").strip()
+        last_commit_message = (last_commit_message.splitlines() or [""])[0]
         if last_commit_hash not in self.coder.aider_commit_hashes:
             self.io.tool_error("The last commit was not made by aider in this chat session.")
             self.io.tool_output(
@@ -641,6 +648,7 @@ class Commands:
         # Get the current HEAD after undo
         current_head_hash = self.coder.repo.get_head_commit_sha(short=True)
         current_head_message = self.coder.repo.get_head_commit_message("(unknown)").strip()
+        current_head_message = (current_head_message.splitlines() or [""])[0]
         self.io.tool_output(f"Now at:  {current_head_hash} {current_head_message}")
 
         if self.coder.main_model.send_undo_reply:
@@ -1316,12 +1324,23 @@ class Commands:
         # First collect all expanded paths
         for pattern in filenames:
             expanded_pattern = expanduser(pattern)
-            if os.path.isabs(expanded_pattern):
-                # For absolute paths, glob it
-                matches = list(glob.glob(expanded_pattern))
+            path_obj = Path(expanded_pattern)
+            is_abs = path_obj.is_absolute()
+            if not is_abs:
+                path_obj = Path(self.coder.root) / path_obj
+
+            matches = []
+            # Check for literal path existence first
+            if path_obj.exists():
+                matches = [path_obj]
             else:
-                # For relative paths and globs, use glob from the root directory
-                matches = list(Path(self.coder.root).glob(expanded_pattern))
+                # If literal path doesn't exist, try globbing
+                if is_abs:
+                    # For absolute paths, glob it
+                    matches = [Path(p) for p in glob.glob(expanded_pattern)]
+                else:
+                    # For relative paths and globs, use glob from the root directory
+                    matches = list(Path(self.coder.root).glob(expanded_pattern))
 
             if not matches:
                 self.io.tool_error(f"No matches found for: {pattern}")
@@ -1541,7 +1560,7 @@ class Commands:
         return self.cmd_editor(args)
 
     def cmd_think_tokens(self, args):
-        "Set the thinking token budget (supports formats like 8096, 8k, 10.5k, 0.5M)"
+        """Set the thinking token budget, eg: 8096, 8k, 10.5k, 0.5M, or 0 to disable."""
         model = self.coder.main_model
 
         if not args.strip():
@@ -1559,10 +1578,16 @@ class Commands:
         value = args.strip()
         model.set_thinking_tokens(value)
 
-        formatted_budget = model.get_thinking_tokens()
-        budget = model.get_raw_thinking_tokens()
+        # Handle the special case of 0 to disable thinking tokens
+        if value == "0":
+            self.io.tool_output("Thinking tokens disabled.")
+        else:
+            formatted_budget = model.get_thinking_tokens()
+            budget = model.get_raw_thinking_tokens()
+            self.io.tool_output(
+                f"Set thinking token budget to {budget:,} tokens ({formatted_budget})."
+            )
 
-        self.io.tool_output(f"Set thinking token budget to {budget:,} tokens ({formatted_budget}).")
         self.io.tool_output()
 
         # Output announcements

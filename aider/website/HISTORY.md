@@ -24,6 +24,69 @@ cog.out(text)
 ]]]-->
 
 
+### Aider v0.86.0
+
+- Expanded GPT-5 model support across family variants and providers (OpenAI, Azure, OpenRouter), including dated and chat/mini/nano variants.
+- Aider wrote 88% of the code in this release.
+
+### Aider v0.85.5
+
+- Enforced diff edit format for GPT-5 models.
+- Added support for the reasoning_effort setting for GPT-5 models.
+- Fixed model detection to correctly apply GPT-5 settings to versioned names (gpt-5 and gpt-5-2025-08-07).
+
+### Aider v0.85.4
+
+- Added support for openai/gpt-5
+- Fixed analytics to support the latest PostHog SDK event-capture API.
+- Disabled temperature when using GPT-5 models for more deterministic outputs.
+
+### Aider v0.85.3
+
+- Bumped dependencies to pick up latest litellm==1.75.0.
+
+### Aider v0.85.2
+
+- Added support for Grok-4 via `xai/grok-4` and `openrouter/x-ai/grok-4` model names.
+- Added support for `gemini/gemini-2.5-flash-lite-preview-06-17` model, by Tamir Zahavi-Brunner.
+- `/clear` now prints “All chat history cleared.” so you know it worked, by Zexin Yuan.
+- `/undo` output now shows only the first line of each commit message, making it easier to read.
+- Fixed an issue where new settings for an existing model didn't replace the old ones, by Andrew Grigorev.
+- Added support for `openrouter/moonshotai/kimi-k2` model, by Jack Harrington.
+
+### Aider v0.85.1
+
+- Display model announcements with no-arg `/model` command.
+
+### Aider v0.85.0
+
+- Support for Responses API models like o1-pro, o3-pro.
+- Updated pricing for o3.
+- Added support for new Gemini models including `gemini-2.5-pro`, `gemini-2.5-flash`, and `gemini-2.5-pro-preview-06-05` with thinking tokens support.
+- Updated model aliases: `flash` now points to `gemini-2.5-flash` and `gemini` now points to `gemini-2.5-pro`.
+- Added `--add-gitignore-files` flag to enable adding files listed in .gitignore to Aider's editing scope, by omarcinkonis.
+- Added `--commit-language` option to specify the language for commit messages, by Kyosuke Takayama.
+- Enhanced thinking tokens support: can now be disabled by setting to 0, and improved help text with examples.
+- Added MATLAB language support for repository maps, by Matthew Tofano.
+- Added support for OpenAI o3-pro model across multiple providers.
+- Improved GitHub Copilot token handling with better validation and error messages, by Vincent Taverna and Sebastian Estrella.
+- Fixed encoding issues in git diff output and LLM history logging.
+- Enhanced commit message generation to use system prompt prefixes, by Luke Reeves.
+- Improved inline code rendering in Rich markdown output, by Vamsi Talupula.
+- Fixed Vertex AI model name prefixes in settings, by Wietse Venema.
+- Improved `/read-only` command to resolve literal paths correctly, by Matteo Landi.
+- Skip expensive file tracking operations when `--skip-sanity-check-repo` is enabled for better performance, by Makar Ivashko.
+- Ensure pip is available before package installation.
+- Auto-create parent directories for chat history files to prevent startup errors, by contributor.
+- Fixed search block regex to accept optional closing tags when working with HTML content, by Mathis Beer.
+- Co-authored-by attribution is now enabled by default for commit messages.
+- Added Clojure language support for repository maps, by Garrett Hopper.
+- Added custom PostHog analytics configuration options with `--analytics-posthog-host` and `--analytics-posthog-project-api-key` flags, by Vasil Markoukin.
+- Optimized chat history summarization performance, by jayeshthk.
+- Improved kebab-case identifier recognition in repository maps for better code analysis.
+- Increased max tokens for Deepseek models to 65536 for better performance.
+- Aider wrote 21% of the code in this release.
+
 ### Aider v0.84.0
 
 - Added support for new Claude models including the Sonnet 4 and Opus 4 series (e.g., `claude-sonnet-4-20250514`,
